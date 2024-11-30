@@ -197,8 +197,9 @@ int main(int argc, char **argv) {
         gettimeofday(&end, NULL);
         mergeTime = GetElapsedTime(start, end);
 
+        // #N/A won't show on scatter plot
         if (insertionTime == -1) {
-            fprintf(csvFile, "%lu,%.0f,%.5f,N/A,%.5f\n",
+            fprintf(csvFile, "%lu,%.0f,%.5f,#N/A,%.5f\n",
             arraySize, logSize, heapTime, mergeTime);
         }
         else {
