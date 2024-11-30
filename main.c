@@ -181,8 +181,6 @@ int main(int argc, char **argv) {
             insertionTime = -1;
         }
         else {
-            // reset array to original unsorted state, same for mergesort
-            memcpy(g, f, (arraySize + 1) * sizeof(unsigned long));
             printf("\tRunning InsertionSort...\n");
             gettimeofday(&start, NULL);
             InsertionSort(g, arraySize);
@@ -190,7 +188,6 @@ int main(int argc, char **argv) {
             insertionTime = GetElapsedTime(start, end);
         }
         // Merge sort
-        memcpy(f, g, (arraySize + 1) * sizeof(unsigned long));
         printf("\tRunning MergeSort...\n");
         gettimeofday(&start, NULL);
         MergeSort(f, 1, arraySize);
