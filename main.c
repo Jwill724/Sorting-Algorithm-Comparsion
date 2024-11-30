@@ -1,6 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <string.h>
+#include <sys/time.h>
+#include <math.h>
+
+// 2^n macro
+#define POW2(n) (1 << (n))
+
+// precise ms tracker using the current machine real time
+// time.h wasn't getting values when sort was near instant
+double GetElapsedTime(struct timeval start, struct timeval end) {
+    double elapsedTime = (end.tv_sec - start.tv_sec) * 1000.0;    // sec to ms
+    elapsedTime += (end.tv_usec - start.tv_usec) / 1000.0;        // us to ms
+    return elapsedTime;
+}
 
 typedef struct Heap {
     unsigned long *arr;
@@ -57,7 +70,6 @@ void HeapSort(heap_t *h) {
 }
 
 void InsertionSort(unsigned long *arr, unsigned int length) {
-
     for (int j = 1; j < length; j++) {
         unsigned long key = arr[j];
         int i = j - 1;
@@ -82,7 +94,9 @@ void MergeSort(unsigned long *a, unsigned int left, unsigned int right) {
 void Merge(unsigned long *a, unsigned long left, unsigned long mid, unsigned long right) {
     unsigned long n1 = mid - left + 1;
     unsigned long n2 = right - mid;
-    unsigned long leftArr[n1], rightArr[n2];
+    // on larger data sets a stack overflow occurs, so this allocates the appropriate size
+    unsigned long *leftArr = (unsigned long *)malloc(n1 * sizeof(unsigned long));
+    unsigned long *rightArr = (unsigned long *)malloc(n2 * sizeof(unsigned long));
 
 	for (unsigned long i = 0; i < n1; i++)
 		leftArr[i] = a[left + i];
@@ -113,66 +127,95 @@ void Merge(unsigned long *a, unsigned long left, unsigned long mid, unsigned lon
         j++;
         k++;
     }
+    free(leftArr);
+    free(rightArr);
 }
 
 int main(int argc, char **argv) {
-    srand(time(NULL));
 
-    unsigned int arraySize = 128;
-    // heap data structure
-    heap_t *h = (heap_t*)malloc(sizeof(heap_t));
-    h->length = arraySize;
+    FILE *csvFile = fopen("sorting_results.csv", "w");
+    if (csvFile == NULL) {
+        printf("Error: Could not open file.\n");
+        return -1;
+    }
+    fprintf(csvFile, "Array_Size,log2(Array_Size),HeapSort_Time_ms,InsertionSort_Time_ms,MergeSort_Time_ms\n");
 
-    // + 1 for 1 based indexing
-    h->arr = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
-    unsigned long *f = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
-    unsigned long *g = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+    // Testing array sizes from 2^7 to 2^22
+    unsigned int testCount = 1;
+    for (unsigned int power = 7; power <= 22; power++) {
+        unsigned long int arraySize = POW2(power);
+        double heapTime = 0.0, insertionTime = 0.0, mergeTime = 0.0;
+        double logSize = log2(arraySize);
 
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        unsigned long tmp = rand() % INT16_MAX;
-        f[i] = tmp;
-        g[i] = tmp;
-        h->arr[i] = tmp;
+        // heap data structure
+        heap_t *h = (heap_t*)malloc(sizeof(heap_t));
+        h->length = arraySize;
+
+        // + 1 for 1 based indexing
+        h->arr = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+        unsigned long *f = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+        unsigned long *g = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+
+        // fill the arrays with same values
+        for (unsigned int i = 1; i <= arraySize; i++) {
+            unsigned long tmp = rand() % INT16_MAX;
+            f[i] = tmp;
+            g[i] = tmp;
+            h->arr[i] = tmp;
+        }
+
+        struct timeval start, end;
+        printf("Test %d: Array size = 2^%d (%lu elements)\n", testCount, power, arraySize);
+
+        // Heap sort
+        printf("\tRunning HeapSort...\n");
+        gettimeofday(&start, NULL);
+        HeapSort(h);
+        gettimeofday(&end, NULL);
+        heapTime = GetElapsedTime(start, end);
+
+        // Insertion sort
+        // 19 and onward it takes multiple mins to possible hours
+        if (power >= 19) {
+            printf("\tSkipping InsertionSort for array size 2^%d: Too inefficient to process.\n", power);
+            insertionTime = -1;
+        }
+        else {
+            // reset array to original unsorted state, same for mergesort
+            memcpy(g, f, (arraySize + 1) * sizeof(unsigned long));
+            printf("\tRunning InsertionSort...\n");
+            gettimeofday(&start, NULL);
+            InsertionSort(g, arraySize);
+            gettimeofday(&end, NULL);
+            insertionTime = GetElapsedTime(start, end);
+        }
+        // Merge sort
+        memcpy(f, g, (arraySize + 1) * sizeof(unsigned long));
+        printf("\tRunning MergeSort...\n");
+        gettimeofday(&start, NULL);
+        MergeSort(f, 1, arraySize);
+        gettimeofday(&end, NULL);
+        mergeTime = GetElapsedTime(start, end);
+
+        if (insertionTime == -1) {
+            fprintf(csvFile, "%lu,%.0f,%.5f,N/A,%.5f\n",
+            arraySize, logSize, heapTime, mergeTime);
+        }
+        else {
+            fprintf(csvFile, "%lu,%.0f,%.5f,%.5f,%.5f\n",
+            arraySize, logSize, heapTime, insertionTime, mergeTime);
+        }
+
+        testCount++;
+
+        free(h->arr);
+        free(f);
+        free(g);
+        free(h);  
     }
 
-    printf("\narray h before heapsort\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", h->arr[i]);
-    }
-
-    printf("\narray g before insertionsort\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", g[i]);
-    }
-
-    printf("\narray f before mergesort\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", f[i]);
-    }
-
-    HeapSort(h);
-    InsertionSort(g, arraySize);
-    MergeSort(f, 1, arraySize);
-
-    printf("\nHeapSort...\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", h->arr[i]);
-    }
-
-    printf("\nInsertionSort...\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", g[i]);
-    }
-
-    printf("\nMergeSort...\n");
-    for (unsigned int i = 1; i <= arraySize; i++) {
-        printf("%lu ", f[i]);
-    }
-
-    free(h->arr);
-    free(f);
-    free(g);
-    free(h);
+    printf("Writing results completed. Closing file...\n");
+    fclose(csvFile);
 
     return 0;
 }
