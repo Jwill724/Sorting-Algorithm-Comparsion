@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/time.h>
+#include <stdint.h>
 #include <math.h>
 
 // 2^n macro
@@ -70,6 +72,10 @@ void HeapSort(heap_t *h) {
 }
 
 void InsertionSort(unsigned long *arr, unsigned int length) {
+    if (length == 0) {
+        return;
+    }
+
     for (int j = 1; j < length; j++) {
         unsigned long key = arr[j];
         int i = j - 1;
@@ -98,7 +104,7 @@ void Merge(unsigned long *a, unsigned long left, unsigned long mid, unsigned lon
     unsigned long *leftArr = (unsigned long *)malloc(n1 * sizeof(unsigned long));
     unsigned long *rightArr = (unsigned long *)malloc(n2 * sizeof(unsigned long));
 
-	for (unsigned long i = 0; i < n1; i++)
+    for (unsigned long i = 0; i < n1; i++)
 		leftArr[i] = a[left + i];
     for (unsigned long i = 0; i < n2; i++)
         rightArr[i] = a[mid + 1 + i];
@@ -153,8 +159,21 @@ int main(int argc, char **argv) {
 
         // + 1 for 1 based indexing
         h->arr = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+        if (h->arr == NULL) {
+            free(h); // h already allocated
+            perror("Failed to allocate memory...\n");
+            return -1;
+        }
         unsigned long *f = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+        if (f == NULL) {
+            perror("Failed to allocate memory...\n");
+            return -1;
+        }
         unsigned long *g = (unsigned long*)malloc((arraySize + 1) * sizeof(unsigned long));
+        if (g == NULL) {
+            perror("Failed to allocate memory...\n");
+            return -1;
+        }
 
         // fill the arrays with same values
         for (unsigned int i = 1; i <= arraySize; i++) {
